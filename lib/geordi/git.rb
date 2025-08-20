@@ -40,6 +40,23 @@ module Geordi
 
         default_branch || 'master'
       end
+
+      def extract_linear_issue_id(target_branch, source_branch)
+        commits = `git --no-pager log --pretty=format:%s origin/#{target_branch}..#{source_branch}`
+        commits = commits.split("\n")
+
+        found_ids = []
+
+        regex = /^\[[A-Z]+-\d+\]/
+
+        commits.each do |line|
+          line.scan(regex) do |match|
+            found_ids << match
+          end
+        end
+
+        found_ids
+      end
     end
   end
 end

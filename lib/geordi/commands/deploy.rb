@@ -1,4 +1,5 @@
 require_relative '../capistrano_config'
+require 'geordi/git'
 
 desc 'deploy [STAGE]', 'Guided deployment across branches'
 long_desc <<-LONGDESC
@@ -28,6 +29,8 @@ Finds available Capistrano stages by their prefix, e.g. `geordi deploy p` will
 deploy production, `geordi deploy mak` will deploy a `makandra` stage if there
 is a file config/deploy/makandra.rb.
 
+If Linear team ids are configured (see `geordi commit`'), will offer to move deployed issues to a new state. 
+
 When your project is running Capistrano 3, deployment will use `cap deploy`
 instead of `cap deploy:migrations`. You can force using `deploy` by passing the
 -M option: `geordi deploy -M staging`.
@@ -39,7 +42,7 @@ option :current_branch, aliases: '-c', type: :boolean,
   desc: 'Set DEPLOY_BRANCH to the current branch during deploy'
 
 def deploy(target_stage = nil)
-  require 'geordi/git'
+  settings = Settings.new
 
   # Set/Infer default values
   branch_stage_map = { 'master' => 'staging', 'main' => 'staging', 'production' => 'production' }
@@ -71,6 +74,10 @@ def deploy(target_stage = nil)
     target_branch = Interaction.prompt 'Deploy branch:', deploy_branch
   end
 
+  if settings.linear_team_ids?
+    settings.linear_state_after_deploy(target_branch)
+  end
+
   merge_needed = (source_branch != target_branch)
   push_needed = merge_needed || `git cherry -v | wc -l`.strip.to_i > 0
   push_needed = false if Util.testing? # Hard to test
@@ -91,9 +98,11 @@ def deploy(target_stage = nil)
 
   Interaction.announce 'You are about to:' #################################################
   Interaction.note "Merge branch #{source_branch} into #{target_branch}" if merge_needed
+  relevant_linear_issue_ids = []
   if push_needed
-    Interaction.note 'Push these commits:' if push_needed
+    Interaction.note 'Push these commits:'
     Util.run!("git --no-pager log origin/#{target_branch}..#{source_branch} --oneline")
+    relevant_linear_issue_ids = Git.extract_linear_issue_id(target_branch, source_branch)
   end
   Interaction.note "Deploy to #{target_stage}"
   Interaction.note "From current branch #{source_branch}" if options.current_branch
