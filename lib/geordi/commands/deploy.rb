@@ -39,6 +39,8 @@ option :current_branch, aliases: '-c', type: :boolean,
   desc: 'Set DEPLOY_BRANCH to the current branch during deploy'
 
 def deploy(target_stage = nil)
+  require 'geordi/git'
+
   # Set/Infer default values
   branch_stage_map = { 'master' => 'staging', 'main' => 'staging', 'production' => 'production' }
   if target_stage && !Util.deploy_targets.include?(target_stage)
@@ -48,7 +50,7 @@ def deploy(target_stage = nil)
   end
 
   # Ask for required information
-  target_stage ||= Interaction.prompt 'Deployment stage:', branch_stage_map.fetch(Util.current_branch, 'staging')
+  target_stage ||= Interaction.prompt 'Deployment stage:', branch_stage_map.fetch(Git.current_branch, 'staging')
   capistrano_config = CapistranoConfig.new(target_stage)
 
   if options.current_branch
@@ -60,12 +62,12 @@ def deploy(target_stage = nil)
       set :branch, ENV['DEPLOY_BRANCH'] || 'master'
     ERROR
 
-    source_branch = target_branch = Util.current_branch
+    source_branch = target_branch = Git.current_branch
   else # Normal deploy
-    source_branch = Interaction.prompt 'Source branch:', Util.current_branch
+    source_branch = Interaction.prompt 'Source branch:', Git.current_branch
 
     deploy_branch = capistrano_config.branch
-    deploy_branch ||= Util.git_default_branch
+    deploy_branch ||= Git.git_default_branch
     target_branch = Interaction.prompt 'Deploy branch:', deploy_branch
   end
 
