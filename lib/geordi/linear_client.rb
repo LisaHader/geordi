@@ -53,6 +53,23 @@ module Geordi
       nil
     end
 
+    def move_issues_to_state(issue_identifiers, state)
+      teams_issues = fetch_linear_issues
+      state_ids = find_target_state_ids(state)
+
+      moved_successful = []
+      issue_identifiers.each do |identifier|
+        issue = teams_issues.find { |i| i['identifier'] == identifier }
+
+        if issue && (state = state_ids[issue.dig('team', 'id')])
+          update_issue_state(issue['id'], state)
+          moved_successful << "[#{issue['identifier']}] #{issue['title']}"
+        end
+      end
+
+      moved_successful
+    end
+
     def issue_from_branch
       issue = if Util.testing?
         dummy_issue_for_testing if ENV['GEORDI_TESTING_ISSUE_MATCHES'] == 'true'
@@ -107,6 +124,7 @@ module Geordi
               nodes {
                 title
                 identifier
+                id
                 url
                 branchName
                 assignee {
@@ -116,7 +134,10 @@ module Geordi
                 state {
                   name
                   position
-               }
+                }
+                team {
+                  id
+                }
               }
             }
           }
@@ -124,6 +145,64 @@ module Geordi
 
         response.dig(*%w[issues nodes])
       end
+    end
+
+    def find_target_state_ids(state_name)
+      result = {}
+
+      team_ids = settings.linear_team_ids
+      filter = {
+        "team": {
+          "id": {
+            "in": team_ids,
+          }
+        }
+      }
+      response = query_api(<<~GRAPHQL, filter: filter)
+        query workflowStates($filter: WorkflowStateFilter) {
+          workflowStates(filter: $filter) {
+            nodes {
+              id
+              name
+              team {
+                id
+              }
+            }
+          }
+        }
+      GRAPHQL
+
+      response = response.dig(*%w[workflowStates nodes])
+
+      team_ids.each do |team_id|
+        found_state = response.find do |item|
+          item["team"]["id"] == team_id && item["name"] == state_name
+        end
+
+        result[team_id] = found_state["id"] if found_state
+      end
+
+      if result.empty?
+        Interaction.fail("The issue state #{state_name} does not exist.")
+      end
+
+      result
+    end
+
+    def update_issue_state(issue_id, state_id)
+      query_api(<<~GRAPHQL, nil)
+        mutation UpdateIssueState {
+          issueUpdate(
+            id: "#{issue_id}"
+            input: {
+              stateId: "#{state_id}"
+            }
+          )
+          {
+            success
+          }
+        }
+      GRAPHQL
     end
 
     def query_api(attributes, variables)

@@ -1,5 +1,6 @@
 require_relative '../capistrano_config'
 require 'geordi/git'
+require 'geordi/linear_client'
 
 desc 'deploy [STAGE]', 'Guided deployment across branches'
 long_desc <<-LONGDESC
@@ -43,6 +44,7 @@ option :current_branch, aliases: '-c', type: :boolean,
 
 def deploy(target_stage = nil)
   settings = Settings.new
+  linear_client = LinearClient.new
 
   # Set/Infer default values
   branch_stage_map = { 'master' => 'staging', 'main' => 'staging', 'production' => 'production' }
@@ -75,7 +77,7 @@ def deploy(target_stage = nil)
   end
 
   if settings.linear_team_ids?
-    settings.linear_state_after_deploy(target_branch)
+    target_state = settings.linear_state_after_deploy(target_branch)
   end
 
   merge_needed = (source_branch != target_branch)
@@ -127,6 +129,12 @@ def deploy(target_stage = nil)
     Util.run!(capistrano_call, show_cmd: true)
 
     Interaction.success 'Deployment complete.'
+
+    if settings.linear_team_ids? && !relevant_linear_issue_ids.empty? && !target_state.empty?
+      moved_successful = linear_client.move_issues_to_state(relevant_linear_issue_ids, target_state)
+      Interaction.note("Moved these issues to state \"#{target_state}\":")
+      puts moved_successful.join("\n")
+    end
 
     Hint.did_you_know [
       :capistrano,

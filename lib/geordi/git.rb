@@ -42,9 +42,13 @@ module Geordi
       end
 
       def extract_linear_issue_id(target_branch, source_branch)
-        commits = `git --no-pager log --pretty=format:%s origin/#{target_branch}..#{source_branch}`
-        commits = commits.split("\n")
+        commits = if Util.testing?
+          ENV['GEORDI_TESTING_GIT_COMMITS']
+        else
+          `git --no-pager log --pretty=format:%s origin/#{target_branch}..#{source_branch}`
+        end
 
+        commits = commits.split("\n")
         found_ids = []
 
         regex = /^\[[A-Z]+-\d+\]/
@@ -55,7 +59,7 @@ module Geordi
           end
         end
 
-        found_ids
+        found_ids.map { |id| id.delete('[]') } # [W-365] => W-365
       end
     end
   end
