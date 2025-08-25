@@ -72,7 +72,7 @@ def deploy(target_stage = nil)
     source_branch = Interaction.prompt 'Source branch:', Git.current_branch
 
     deploy_branch = capistrano_config.branch
-    deploy_branch ||= Git.git_default_branch
+    deploy_branch ||= Git.default_branch
     target_branch = Interaction.prompt 'Deploy branch:', deploy_branch
   end
 
@@ -82,7 +82,6 @@ def deploy(target_stage = nil)
 
   merge_needed = (source_branch != target_branch)
   push_needed = merge_needed || `git cherry -v | wc -l`.strip.to_i > 0
-  push_needed = false if Util.testing? # Hard to test
 
   Interaction.announce "Checking whether your #{source_branch} branch is ready" ############
   Util.run!("git checkout #{source_branch}")
@@ -100,11 +99,13 @@ def deploy(target_stage = nil)
 
   Interaction.announce 'You are about to:' #################################################
   Interaction.note "Merge branch #{source_branch} into #{target_branch}" if merge_needed
-  relevant_linear_issue_ids = []
+  linear_issue_ids = []
   if push_needed
     Interaction.note 'Push these commits:'
     Util.run!("git --no-pager log origin/#{target_branch}..#{source_branch} --oneline")
-    relevant_linear_issue_ids = Git.extract_linear_issue_id(target_branch, source_branch)
+
+    commit_messages = Git.commits_between(source_branch, target_branch)
+    linear_issue_ids = Util.extract_linear_issue_ids(commit_messages)
   end
   Interaction.note "Deploy to #{target_stage}"
   Interaction.note "From current branch #{source_branch}" if options.current_branch
@@ -129,11 +130,10 @@ def deploy(target_stage = nil)
     Util.run!(capistrano_call, show_cmd: true)
 
     Interaction.success 'Deployment complete.'
-
-    if settings.linear_team_ids? && !relevant_linear_issue_ids.empty? && !target_state.empty?
-      moved_successful = linear_client.move_issues_to_state(relevant_linear_issue_ids, target_state)
+    if !linear_issue_ids.empty? && target_state && !target_state.empty?
+      successfully_moved_issues = linear_client.move_issues_to_state(linear_issue_ids, target_state)
       Interaction.note("Moved these issues to state \"#{target_state}\":")
-      puts moved_successful.join("\n")
+      puts successfully_moved_issues.join("\n")
     end
 
     Hint.did_you_know [

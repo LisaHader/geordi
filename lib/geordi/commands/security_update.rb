@@ -11,7 +11,7 @@ LONGDESC
 def security_update(step = 'prepare')
   require 'geordi/git'
 
-  master = Git.git_default_branch
+  master = Git.default_branch
 
   case step
   when 'prepare'

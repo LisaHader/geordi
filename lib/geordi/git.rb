@@ -15,7 +15,7 @@ module Geordi
 
       def current_branch
         if Util.testing?
-          git_default_branch
+          default_branch
         else
           `git rev-parse --abbrev-ref HEAD`.strip
         end
@@ -30,7 +30,7 @@ module Geordi
         end
       end
 
-      def git_default_branch
+      def default_branch
         default_branch = if Util.testing?
           ENV['GEORDI_TESTING_DEFAULT_BRANCH']
         else
@@ -41,25 +41,12 @@ module Geordi
         default_branch || 'master'
       end
 
-      def extract_linear_issue_id(target_branch, source_branch)
-        commits = if Util.testing?
-          ENV['GEORDI_TESTING_GIT_COMMITS']
-        else
-          `git --no-pager log --pretty=format:%s origin/#{target_branch}..#{source_branch}`
-        end
+      def commits_between(source_branch, target_branch) # get_commits_not_in(.., source_branch: )
+        return [ENV['GEORDI_TESTING_GIT_COMMIT']] if Util.testing?
 
-        commits = commits.split("\n")
-        found_ids = []
+        commits = `git --no-pager log --pretty=format:%s origin/#{target_branch}..#{source_branch}`
 
-        regex = /^\[[A-Z]+-\d+\]/
-
-        commits.each do |line|
-          line.scan(regex) do |match|
-            found_ids << match
-          end
-        end
-
-        found_ids.map { |id| id.delete('[]') } # [W-365] => W-365
+        commits&.split("\n")
       end
     end
   end

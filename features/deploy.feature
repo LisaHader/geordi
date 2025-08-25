@@ -11,16 +11,23 @@ Feature: The deploy command
     Unfortunately, Aruba cannot run commands truly interactively. We need to
     answer prompts blindly, and check the output afterwards.
 
+  Given the commit with the message "[W-367] Test commit" is going to be deployed
+    And I specified linear team ids in the settings
+
     When I run `geordi deploy` interactively
       # Answer three prompts
       And I type "staging"
+      And I type "test"
       And I type "master"
-      And I type ""
+      And I type "On Production"
       # Confirm deployment
       And I type "yes"
     Then the output should contain:
       """
       # You are about to:
+      > Merge branch test into master
+      > Push these commits:
+      Util.run! git --no-pager log origin/master..test --oneline
       > Deploy to staging
       Go ahead with the deployment? [n]
       """
@@ -30,6 +37,8 @@ Feature: The deploy command
       Util.run! cap staging deploy:migrations
 
       > Deployment complete.
+      > Moved these issues to state "On Production":
+      W-367
       """
 
 

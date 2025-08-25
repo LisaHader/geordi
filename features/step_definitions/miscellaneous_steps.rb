@@ -30,6 +30,14 @@ Given 'the current branch matches an issue' do
   ENV['GEORDI_TESTING_ISSUE_MATCHES'] = 'true'
 end
 
+Given(/^the commit with the message "(.*)" is going to be deployed$/) do |commit_message|
+  ENV['GEORDI_TESTING_GIT_COMMIT'] = commit_message
+end
+
+Given(/^I specified linear team ids in the settings$/) do
+  ENV['GEORDI_TESTING_LINEAR_TEAM_ID_GIVEN'] = 'true'
+end
+
 After do
   ENV['GEORDI_TESTING_STAGED_CHANGES'] = 'false'
   ENV['GEORDI_TESTING_GIT_BRANCHES'] = nil
@@ -38,5 +46,6 @@ After do
   ENV['GEORDI_TESTING_RUBY_VERSION'] = nil
   ENV['GEORDI_TESTING_DEFAULT_BRANCH'] = nil
   ENV['GEORDI_TESTING_ISSUE_MATCHES'] = nil
-  ENV['GEORDI_TESTING_GIT_COMMITS'] = nil
+  ENV['GEORDI_TESTING_GIT_COMMIT'] = nil
+  ENV['GEORDI_TESTING_LINEAR_TEAM_ID_GIVEN'] = 'false'
 end

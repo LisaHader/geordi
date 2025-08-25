@@ -68,6 +68,8 @@ module Geordi
       team_ids
     end
     def linear_team_ids?
+      return ENV['GEORDI_TESTING_LINEAR_TEAM_ID_GIVEN'] == 'true' if Util.testing?
+
       team_ids = get_linear_team_ids
       !team_ids.empty?
     end
@@ -86,7 +88,7 @@ module Geordi
       if !target_state.empty? && !target_state.eql?(default_state)
         @local_settings['linear_state_after_deploy'] ||= Hash.new
         @local_settings['linear_state_after_deploy'][stage] = target_state
-        save_local_settings
+        save_local_settings unless Util.testing?
       end
 
       target_state

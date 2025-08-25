@@ -21,7 +21,7 @@ def branch
   if matching_local_branch
     Util.run! ['git', 'checkout', matching_local_branch]
   else
-    default_branch = Git.git_default_branch
+    default_branch = Git.default_branch
     Util.run! ['git', 'checkout', default_branch] if options.from_master
     Util.run! ['git', 'checkout', '-b', issue['branchName']]
   end

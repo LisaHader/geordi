@@ -54,20 +54,22 @@ module Geordi
     end
 
     def move_issues_to_state(issue_identifiers, state)
+      return dummy_issue_titles_for_testing(issue_identifiers) if Util.testing?
+
       teams_issues = fetch_linear_issues
       state_ids = find_target_state_ids(state)
 
-      moved_successful = []
+      successfully_moved_issues = []
       issue_identifiers.each do |identifier|
         issue = teams_issues.find { |i| i['identifier'] == identifier }
 
         if issue && (state = state_ids[issue.dig('team', 'id')])
           update_issue_state(issue['id'], state)
-          moved_successful << "[#{issue['identifier']}] #{issue['title']}"
+          successfully_moved_issues << "[#{issue['identifier']}] #{issue['title']}"
         end
       end
 
-      moved_successful
+      successfully_moved_issues
     end
 
     def issue_from_branch
@@ -101,6 +103,14 @@ module Geordi
         'assignee' => { 'name' => 'Test User', 'isMe' => true },
         'state' => { 'name' => 'In Progress' }
       }
+    end
+
+    def dummy_issue_titles_for_testing(issue_identifiers)
+      issue_titles = []
+      count = 1
+      issue_identifiers.each do |identifier|
+        issue_titles << "[#{identifier}] Test Issue #{count}}"
+      end
     end
 
     def fetch_linear_issues
