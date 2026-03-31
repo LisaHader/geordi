@@ -48,6 +48,14 @@ module Geordi
 
         commits&.split("\n")
       end
+
+      def commits_after_revision(revision, branch)
+        return [ENV['GEORDI_TESTING_GIT_COMMIT']] if Util.testing?
+
+        commits = `git --no-pager log --pretty=format:%s #{revision}.. origin/#{branch}`
+
+        commits&.split("\n")
+      end
     end
   end
 end
