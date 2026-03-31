@@ -220,6 +220,52 @@ module Geordi
         %r{(^|\/)spec|_spec\.rb($|:)}.match?(path)
       end
 
+      def rake_task_defined?(task_name)
+        if testing?
+          return true
+        end
+        `cap -T`.split.include?(task_name)
+      end
+
+      def get_current_app_revisions(target_stage)
+        return ['a76fdd46e5319a202f7daa3f0fbdadb0c6f44408'] if testing?
+        output = `cap #{target_stage} app:revision`
+
+        # git revisions are in SHA-1 format => 40-byte hexadecimal string
+        output.scan(/[a-f0-9]{40}/).uniq
+      end
+
+      def determine_issues_to_move(source_branch, target_branch, target_state, target_stage)
+        commit_messages = []
+        if rake_task_defined?('app:revision')
+          revision = get_current_app_revisions(target_stage)
+          n = 3
+          if revision.size == 0
+            Interaction.warn 'Could not read a server revision from app:revision output.'
+            puts "Continuing without moving Linear issues in #{n} seconds."
+            sleep(n)
+          elsif revision.size > 1
+            Interaction.warn 'Currently deployed revision differs on servers.'
+            puts "Continuing without moving Linear issues in #{n} seconds."
+            sleep(n)
+          else
+            # there is one consistent revision deployed across all target servers => Linear issues can be moved
+            commit_messages = Git.commits_after_revision(revision, source_branch)
+          end
+        else
+          Interaction.warn 'Missing Capistrano task "app:revision". See `geordi help deploy`.'
+          puts 'Without it, Geordi can only consider pushed commits for moving Linear issues.'
+          commit_messages = Git.commits_between(source_branch, target_branch)
+        end
+
+        linear_issue_ids =  LinearClient.extract_issue_ids(commit_messages)
+        relevant_commits = LinearClient.filter_by_issue_ids(commit_messages, linear_issue_ids)
+        Interaction.note("Move these Linear issues to state \"#{target_state}\":")
+        puts relevant_commits.join("\n")
+
+        linear_issue_ids
+      end
+
     end
   end
 end
