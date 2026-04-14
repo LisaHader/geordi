@@ -63,12 +63,8 @@ RSpec.describe Geordi::Util do
     let(:target_branch) { 'master' }
     let(:target_stage) { 'staging' }
 
-    before do
-      allow(described_class).to receive(:sleep) # prevent wait time in errors paths for faster test execution
-    end
-
     it 'returns Linear issue IDs and relevant commits since the deployed revision' do
-      allow(Geordi::Git).to receive(:commits_after_revision).and_return([
+      allow(Geordi::Git).to receive(:commits_since).and_return([
         '[W-123] Implement feature',
         'Fix typo without issue',
       ])
@@ -78,19 +74,19 @@ RSpec.describe Geordi::Util do
       expect(relevant_commits).to eq(['[W-123] Implement feature'])
     end
 
-    it 'warns and returns empty arrays when no revision can be read from servers' do
+    it 'fails when no revision can be read from servers' do
       allow(Geordi::CapistranoConfig).to receive(:current_app_revisions).and_return([])
 
-      expect(Geordi::Interaction).to receive(:warn).with('Could not read a server revision from app:revision output.')
-      issue_ids, relevant_commits = described_class.determine_issues_to_move(source_branch, target_branch, target_stage)
-      expect(issue_ids).to eq([])
-      expect(relevant_commits).to eq([])
+      expect(Geordi::Interaction).to receive(:fail).with('Could not read a server revision from app:revision output.')
+      described_class.determine_issues_to_move(source_branch, target_branch, target_stage)
     end
 
-    it 'warns and returns empty arrays when deployed revision differs across servers' do
+    it 'returns empty arrays, warns and asks for confirmation when deployed revision differs across servers' do
       allow(Geordi::CapistranoConfig).to receive(:current_app_revisions).and_return(['abc123', 'def456'])
+      allow(Geordi::Interaction).to receive(:confirm_or_cancel)
 
       expect(Geordi::Interaction).to receive(:warn).with('Currently deployed revision differs on servers.')
+      expect(Geordi::Interaction).to receive(:confirm_or_cancel).with('Continue deployment without moving Linear issues?')
       issue_ids, relevant_commits = described_class.determine_issues_to_move(source_branch, target_branch, target_stage)
       expect(issue_ids).to eq([])
       expect(relevant_commits).to eq([])
@@ -98,7 +94,7 @@ RSpec.describe Geordi::Util do
 
     it 'warns and falls back to commits between branches when the app:revision task is missing' do
       allow(Geordi::CapistranoConfig).to receive(:task_defined?).and_return(false)
-      allow(Geordi::Git).to receive(:commits_between).and_return([
+      allow(Geordi::Git).to receive(:commits_since).and_return([
         '[W-456] Another feature',
         'Commit without issue',
       ])

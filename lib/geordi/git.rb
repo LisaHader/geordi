@@ -41,18 +41,10 @@ module Geordi
         default_branch || 'master'
       end
 
-      def commits_between(source_branch, target_branch)
+      def commits_since(base, source_branch)
         return [ENV['GEORDI_TESTING_GIT_COMMIT']] if Util.testing?
 
-        commits = `git --no-pager log --pretty=format:%s origin/#{target_branch}..#{source_branch}`
-
-        commits&.split("\n")
-      end
-
-      def commits_after_revision(revision, branch)
-        return [ENV['GEORDI_TESTING_GIT_COMMIT']] if Util.testing?
-
-        commits = `git --no-pager log --pretty=format:%s #{revision}.. origin/#{branch}`
+        commits = `git --no-pager log --pretty=format:%s #{base}..#{source_branch}`
 
         commits&.split("\n")
       end

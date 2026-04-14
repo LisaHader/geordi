@@ -224,23 +224,20 @@ module Geordi
         commit_messages = []
         if CapistranoConfig.task_defined?('app:revision')
           revision = CapistranoConfig.current_app_revisions(target_stage)
-          n = 3
+
           if revision.empty?
-            Interaction.warn 'Could not read a server revision from app:revision output.'
-            puts "Continuing without moving Linear issues in #{n} seconds."
-            sleep(n)
+            Interaction.fail 'Could not read a server revision from app:revision output.'
           elsif revision.size > 1
             Interaction.warn 'Currently deployed revision differs on servers.'
-            puts "Continuing without moving Linear issues in #{n} seconds."
-            sleep(n)
+            Interaction.confirm_or_cancel('Continue deployment without moving Linear issues?')
           else
             # there is one consistent revision deployed across all target servers => Linear issues can be moved
-            commit_messages = Git.commits_after_revision(revision.first, source_branch)
+            commit_messages = Git.commits_since(revision.first, source_branch)
           end
         else
           Interaction.warn 'Missing Capistrano task "app:revision". See `geordi help deploy`.'
           puts 'Without it, Geordi can only consider pushed commits for moving Linear issues.'
-          commit_messages = Git.commits_between(source_branch, target_branch)
+          commit_messages = Git.commits_since("origin/#{target_branch}", source_branch)
         end
 
         linear_issue_ids = LinearClient.extract_issue_ids(commit_messages)
