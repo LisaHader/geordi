@@ -64,7 +64,7 @@ RSpec.describe Geordi::Util do
     let(:target_stage) { 'staging' }
 
     it 'returns Linear issue IDs and relevant commits since the deployed revision' do
-      allow(Geordi::Git).to receive(:commits_since).and_return([
+      allow(Geordi::Git).to receive(:commits_between).and_return([
         '[W-123] Implement feature',
         'Fix typo without issue',
       ])
@@ -94,7 +94,7 @@ RSpec.describe Geordi::Util do
 
     it 'warns and falls back to commits between branches when the app:revision task is missing' do
       allow(Geordi::CapistranoConfig).to receive(:task_defined?).and_return(false)
-      allow(Geordi::Git).to receive(:commits_since).and_return([
+      allow(Geordi::Git).to receive(:commits_between).and_return([
         '[W-456] Another feature',
         'Commit without issue',
       ])

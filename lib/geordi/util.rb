@@ -232,12 +232,12 @@ module Geordi
             Interaction.confirm_or_cancel('Continue deployment without moving Linear issues?')
           else
             # there is one consistent revision deployed across all target servers => Linear issues can be moved
-            commit_messages = Git.commits_since(revision.first, source_branch)
+            commit_messages = Git.commits_between(revision.first, source_branch)
           end
         else
           Interaction.warn 'Missing Capistrano task "app:revision". See `geordi help deploy`.'
           puts 'Without it, Geordi can only consider pushed commits for moving Linear issues.'
-          commit_messages = Git.commits_since("origin/#{target_branch}", source_branch)
+          commit_messages = Git.commits_between("origin/#{target_branch}", source_branch)
         end
 
         linear_issue_ids = LinearClient.extract_issue_ids(commit_messages)
